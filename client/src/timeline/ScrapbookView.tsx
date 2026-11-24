@@ -142,7 +142,8 @@ export function ScrapbookView({
 
     channel
       .on('broadcast', { event: 'book_change' }, ({ payload }) => {
-        if (payload && payload.sender !== currentUser && payload.state) {
+        if (payload && payload.state) {
+          if (payload.sender && currentUser && payload.sender === currentUser) return;
           isRemoteUpdateRef.current = true;
           setState(payload.state);
           if (engineRef.current) {
@@ -158,12 +159,36 @@ export function ScrapbookView({
           }, 300);
         }
       })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'scrapbooks' },
+        (payload: any) => {
+          if (payload?.new?.state) {
+            const newState = typeof payload.new.state === 'string'
+              ? JSON.parse(payload.new.state)
+              : payload.new.state;
+            isRemoteUpdateRef.current = true;
+            setState(newState);
+            if (engineRef.current) {
+              engineRef.current.updateState(newState);
+            }
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+            } catch {}
+            setPartnerNotice(`✨ Buku diperbarui oleh pasangan!`);
+            setTimeout(() => setPartnerNotice(null), 3500);
+            setTimeout(() => {
+              isRemoteUpdateRef.current = false;
+            }, 300);
+          }
+        }
+      )
       .subscribe();
 
     channelRef.current = channel;
 
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
       channelRef.current = null;
     };
   }, [currentUser]);
@@ -181,6 +206,20 @@ export function ScrapbookView({
       // Jangan broadcast balik jika update berasal dari pasangan
       if (isRemoteUpdateRef.current) return;
 
+      // 1. Broadcast instan ke pasangan (sub-second Canva live feel)
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'book_change',
+          payload: {
+            sender: currentUser,
+            state: newState,
+            timestamp: Date.now(),
+          },
+        });
+      }
+
+      // 2. Debounced save ke Postgres Supabase
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       setSyncStatus('saving');
 
@@ -188,19 +227,6 @@ export function ScrapbookView({
         try {
           await api.saveScrapbook(newState);
           setSyncStatus('synced');
-
-          // Broadcast instan ke pasangan (sub-second WebSocket message)
-          if (channelRef.current) {
-            channelRef.current.send({
-              type: 'broadcast',
-              event: 'book_change',
-              payload: {
-                sender: currentUser,
-                state: newState,
-                timestamp: Date.now(),
-              },
-            });
-          }
         } catch (err) {
           console.warn('Gagal sinkron cloud:', err);
           setSyncStatus('offline');
