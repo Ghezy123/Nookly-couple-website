@@ -108,14 +108,36 @@ export const supabaseApi = {
 
     if (cErr || !couple) throw new Error('Kode undangan tidak ditemukan');
 
-    const { count, error: countErr } = await supabase
+    const { data: users, error: uListErr } = await supabase
       .from('users')
-      .select('*', { count: 'exact', head: true })
+      .select('*')
       .eq('couple_id', couple.id);
 
-    if (countErr) throw new Error(countErr.message);
-    if ((count || 0) >= 2) throw new Error('Ruang ini sudah berisi dua orang');
+    if (uListErr) throw new Error(uListErr.message);
 
+    const existingUsers = users || [];
+
+    // 1. Cek apakah pengguna ini sudah terdaftar di ruang ini (Re-login / Masuk kembali)
+    const match = existingUsers.find(
+      (u) => u.name.trim().toLowerCase() === cleanName.toLowerCase()
+    );
+
+    if (match) {
+      // Masuk kembali ke akun yang sudah ada
+      return {
+        token: match.token,
+        user: { id: match.id, name: match.name, mood: match.mood, moodAt: match.mood_at },
+        inviteCode: couple.invite_code,
+      };
+    }
+
+    // 2. Jika bukan akun yang sudah ada, cek apakah ruang sudah penuh
+    if (existingUsers.length >= 2) {
+      const names = existingUsers.map((u) => u.name).join(' atau ');
+      throw new Error(`Ruang ini sudah terisi oleh ${names}. Masukkan nama panggilanmu yang terdaftar untuk masuk kembali.`);
+    }
+
+    // 3. Daftarkan sebagai pasangan baru (pengguna ke-2)
     const now = Date.now();
     const token = randomToken();
 

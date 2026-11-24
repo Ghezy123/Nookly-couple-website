@@ -14,12 +14,12 @@ export default function AuthGate({ actions, error, loading }) {
         <h1 className="font-display text-3xl font-bold text-center">Nookly</h1>
         <p className="text-center opacity-70 -mt-2">Ruang private berdua untuk cerita dan mood.</p>
         <div className="grid grid-cols-2 gap-2">
-          {[['create', 'Buat ruang baru'], ['join', 'Gabung pakai kode']].map(([k, l]) => <button key={k} className={`chip !py-2 ${tab === k ? 'chip-on' : ''}`} onClick={() => setTab(k)}>{l}</button>)}
+          {[['create', 'Buat ruang baru'], ['join', 'Gabung / Masuk']].map(([k, l]) => <button key={k} className={`chip !py-2 ${tab === k ? 'chip-on' : ''}`} onClick={() => setTab(k)}>{l}</button>)}
         </div>
         <input className="field" placeholder="Nama panggilanmu" maxLength={20} value={name} onChange={(e) => setName(e.target.value)} aria-label="Nama" />
         {tab === 'join' && <input className="field uppercase tracking-widest" placeholder="Kode undangan" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} aria-label="Kode undangan" />}
         {error && <p className="text-center font-semibold text-accent font-bold" role="alert">{error}</p>}
-        <button className="btn-warm w-full" disabled={loading || !name.trim() || (tab === 'join' && code.length < 6)} onClick={go}>{tab === 'create' ? 'Buat ruang' : 'Gabung'}</button>
+        <button className="btn-warm w-full" disabled={loading || !name.trim() || (tab === 'join' && code.length < 6)} onClick={go}>{tab === 'create' ? 'Buat ruang' : 'Masuk ke ruang'}</button>
       </motion.div>
     </div>
   );

@@ -30,7 +30,12 @@ app.post('/api/auth/join', (req, res) => {
   const name = text(req.body.name, 20); if (!name) return bad(res, 'Nama wajib diisi (maks 20 karakter)');
   const couple = q.coupleByCode.get(String(req.body.code || '').trim().toUpperCase());
   if (!couple) return bad(res, 'Kode undangan tidak ditemukan', 404);
-  if (q.usersOfCouple.all(couple.id).length >= 2) return bad(res, 'Ruang ini sudah berisi dua orang', 409);
+  const users = q.usersOfCouple.all(couple.id);
+  const match = users.find((u) => u.name.trim().toLowerCase() === name.trim().toLowerCase());
+  if (match) {
+    return res.status(200).json({ token: match.token, user: publicUser(match), inviteCode: couple.invite_code });
+  }
+  if (users.length >= 2) return bad(res, `Ruang ini sudah terisi oleh ${users.map((u) => u.name).join(' atau ')}. Masukkan namamu yang terdaftar untuk masuk kembali.`, 409);
   res.status(201).json({ ...makeUser(couple.id, name), inviteCode: couple.invite_code });
 });
 app.get('/api/me', auth, (req, res) => {
