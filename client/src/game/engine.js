@@ -2,6 +2,35 @@ export const N = 8;
 export const COLORS = ['#ff7a8a', '#ffb98a', '#ffd978', '#b9a5fb', '#b7a8ad']; // 4 warna balok + 1 blok batu (id 5)
 export const emptyGrid = () => Array.from({ length: N }, () => Array(N).fill(0));
 
+// Starter grid dengan beberapa balok acak berwarna agar tidak kosongan (ala Block Blast)
+export function createStarterGrid(count = 6) {
+  const g = emptyGrid();
+  let placed = 0;
+  const rowCount = Array(N).fill(0);
+  const colCount = Array(N).fill(0);
+  const cells = [];
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      cells.push([r, c]);
+    }
+  }
+  for (let i = cells.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cells[i], cells[j]] = [cells[j], cells[i]];
+  }
+  for (const [r, c] of cells) {
+    if (placed >= count) break;
+    // Maksimal 2 balok per baris/kolom agar papan tetap lega dan mudah disusun
+    if (rowCount[r] < 2 && colCount[c] < 2) {
+      g[r][c] = (Math.floor(Math.random() * 4) + 1);
+      rowCount[r]++;
+      colCount[c]++;
+      placed++;
+    }
+  }
+  return g;
+}
+
 export function mulberry32(a) {
   return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -35,8 +64,8 @@ export const fits = (g, s, r, c) =>
 export const canFit = (g, s) => { for (let r = 0; r <= N - s.h; r++) for (let c = 0; c <= N - s.w; c++) if (fits(g, s, r, c)) return true; return false; };
 export const canFitAny = (g, hand) => hand.some((s) => s && canFit(g, s));
 
-// Fair RNG: deterministik dari seed; diulang (deterministik) sampai minimal 1 balok muat di papan.
-export function genHand(grid, rng) {
+// Generator balok acak dinamis (default Math.random agar selalu unik tiap game dan pemain)
+export function genHand(grid, rng = Math.random) {
   let hand;
   for (let t = 0; t < 40; t++) {
     hand = [0, 1, 2].map(() => SHAPES[(rng() * SHAPES.length) | 0]);

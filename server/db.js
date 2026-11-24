@@ -34,6 +34,11 @@ CREATE TABLE IF NOT EXISTS memories (
   event_date TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT 'other',
   images TEXT NOT NULL DEFAULT '[]', visibility TEXT NOT NULL DEFAULT 'private' CHECK (visibility IN ('private','shared')),
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS scrapbooks (
+  couple_id INTEGER PRIMARY KEY REFERENCES couples(id) ON DELETE CASCADE,
+  state TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT);
 CREATE INDEX IF NOT EXISTS idx_memories_couple ON memories(couple_id, event_date DESC);
 CREATE INDEX IF NOT EXISTS idx_stories_couple ON stories(couple_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_replies_story ON replies(story_id, created_at);
@@ -66,4 +71,6 @@ export const q = {
   addMemory: db.prepare('INSERT INTO memories (couple_id, author_id, event_date, title, description, category, images, visibility, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
   updMemory: db.prepare('UPDATE memories SET event_date = ?, title = ?, description = ?, category = ?, images = ?, visibility = ?, updated_at = ? WHERE id = ?'),
   delMemory: db.prepare('DELETE FROM memories WHERE id = ?'),
+  getScrapbook: db.prepare('SELECT * FROM scrapbooks WHERE couple_id = ?'),
+  saveScrapbook: db.prepare('INSERT INTO scrapbooks (couple_id, state, updated_at, updated_by) VALUES (?, ?, ?, ?) ON CONFLICT(couple_id) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at, updated_by = excluded.updated_by'),
 };

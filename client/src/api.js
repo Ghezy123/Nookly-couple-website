@@ -54,6 +54,8 @@ const restApi = {
   addMemory: (b) => req('/memories', { method: 'POST', body: b }),
   editMemory: (id, b) => req(`/memories/${id}`, { method: 'PATCH', body: b }),
   delMemory: (id) => req(`/memories/${id}`, { method: 'DELETE' }),
+  getScrapbook: () => req('/scrapbook'),
+  saveScrapbook: (state) => req('/scrapbook', { method: 'PUT', body: { state } }),
 };
 
 export const api = isSupabaseConfigured ? supabaseApi : restApi;

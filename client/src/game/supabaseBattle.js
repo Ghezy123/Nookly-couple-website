@@ -75,8 +75,13 @@ export function createSupabaseSocket(supabase) {
               trigger('room_update', currentRoom);
             }
           })
-          .on('broadcast', { event: 'state' }, ({ payload: p }) => trigger('state', p))
-          .on('broadcast', { event: 'garbage' }, ({ payload: p }) => trigger('garbage', p))
+          .on('broadcast', { event: 'state' }, ({ payload: p }) => {
+            if (currentRoom?.scores && p?.id) {
+              currentRoom.scores[p.id] = Number(p.score) || 0;
+            }
+            trigger('opp_state', p);
+          })
+          .on('broadcast', { event: 'attack' }, ({ payload: p }) => trigger('attack', p))
           .on('broadcast', { event: 'game_over' }, ({ payload: p }) => {
             if (currentRoom?.inMatch) {
               currentRoom.inMatch = false;
@@ -145,8 +150,13 @@ export function createSupabaseSocket(supabase) {
             if (currentRoom) currentRoom.inMatch = false;
             trigger('match_end', e);
           })
-          .on('broadcast', { event: 'state' }, ({ payload: p }) => trigger('state', p))
-          .on('broadcast', { event: 'garbage' }, ({ payload: p }) => trigger('garbage', p))
+          .on('broadcast', { event: 'state' }, ({ payload: p }) => {
+            if (currentRoom?.scores && p?.id) {
+              currentRoom.scores[p.id] = Number(p.score) || 0;
+            }
+            trigger('opp_state', p);
+          })
+          .on('broadcast', { event: 'attack' }, ({ payload: p }) => trigger('attack', p))
           .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
               // Minta bergabung ke host
@@ -195,17 +205,20 @@ export function createSupabaseSocket(supabase) {
         }
       }
 
-      // 5. IN GAME (State, Garbage, Game Over)
+      // 5. IN GAME (State, Attack / Garbage, Game Over)
       else if (event === 'state') {
+        if (currentRoom?.scores) {
+          currentRoom.scores[myId] = Number(payload?.score) || 0;
+        }
         currentChannel?.send({
           type: 'broadcast',
           event: 'state',
-          payload,
+          payload: { ...payload, id: myId },
         });
-      } else if (event === 'garbage') {
+      } else if (event === 'attack' || event === 'garbage') {
         currentChannel?.send({
           type: 'broadcast',
-          event: 'garbage',
+          event: 'attack',
           payload,
         });
       } else if (event === 'game_over') {

@@ -67,6 +67,14 @@ CREATE TABLE IF NOT EXISTS public.memories (
   updated_at BIGINT NOT NULL
 );
 
+-- 7. Tabel Buku Kenangan 3D Kolaboratif (Scrapbooks)
+CREATE TABLE IF NOT EXISTS public.scrapbooks (
+  couple_id UUID PRIMARY KEY REFERENCES public.couples(id) ON DELETE CASCADE,
+  state JSONB NOT NULL,
+  updated_at BIGINT NOT NULL,
+  updated_by TEXT
+);
+
 -- Indeks untuk pencarian cepat
 CREATE INDEX IF NOT EXISTS idx_users_couple ON public.users(couple_id);
 CREATE INDEX IF NOT EXISTS idx_stories_couple ON public.stories(couple_id, created_at DESC);
@@ -80,6 +88,7 @@ ALTER TABLE public.stories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.replies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.memories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.scrapbooks ENABLE ROW LEVEL SECURITY;
 
 -- Kebijakan Anon (Izinkan read/write untuk client ber-API Key anon)
 CREATE POLICY "Allow all on couples" ON public.couples FOR ALL USING (true) WITH CHECK (true);
@@ -88,6 +97,7 @@ CREATE POLICY "Allow all on stories" ON public.stories FOR ALL USING (true) WITH
 CREATE POLICY "Allow all on replies" ON public.replies FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on reactions" ON public.reactions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on memories" ON public.memories FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on scrapbooks" ON public.scrapbooks FOR ALL USING (true) WITH CHECK (true);
 
 -- Enable Realtime untuk sinkronisasi otomatis
 ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
@@ -95,3 +105,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.stories;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.replies;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.reactions;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.memories;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.scrapbooks;

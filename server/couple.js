@@ -49,6 +49,23 @@ app.put('/api/user/name', auth, (req, res) => {
   res.json({ ok: true, name });
 });
 
+// ---------- Buku Kenangan 3D (Scrapbook) ----------
+app.get('/api/scrapbook', auth, (req, res) => {
+  const row = q.getScrapbook.get(req.user.couple_id);
+  if (!row) return res.json({ state: null });
+  res.json({
+    state: JSON.parse(row.state),
+    updatedAt: row.updated_at,
+    updatedBy: row.updated_by,
+  });
+});
+app.put('/api/scrapbook', auth, (req, res) => {
+  const s = req.body.state;
+  if (!s) return bad(res, 'State buku tidak valid');
+  q.saveScrapbook.run(req.user.couple_id, JSON.stringify(s), now(), req.user.name);
+  res.json({ ok: true });
+});
+
 // ---------- Cerita ----------
 // Aturan akses utama: cerita pasangan HANYA terlihat bila visibility = 'shared'.
 const canSee = (s, me) => s && (s.author_id === me.id || s.visibility === 'shared');

@@ -43,6 +43,8 @@ import {
   exportScrapbookElementToMemoryInput,
 } from './scrapbookMediaService';
 import { compressImage } from './imageUtils';
+import { api } from '../api';
+import { supabase } from '../supabase';
 
 interface ScrapbookViewProps {
   currentUser: UserId;
@@ -79,6 +81,13 @@ export function ScrapbookView({
   const [editingCover, setEditingCover] = useState(false);
   const coverImgInputRef = useRef<HTMLInputElement>(null);
 
+  // Status Sinkronisasi Realtime
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'saving' | 'offline'>('synced');
+  const [partnerNotice, setPartnerNotice] = useState<string | null>(null);
+  const saveTimeoutRef = useRef<any>(null);
+  const channelRef = useRef<any>(null);
+  const isRemoteUpdateRef = useRef(false);
+
   // History stack for Undo / Redo
   const historyRef = useRef<string[]>([JSON.stringify(state)]);
   const historyIdxRef = useRef(0);
@@ -94,15 +103,112 @@ export function ScrapbookView({
   // Audio Context for synthetic tune / melody
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Save to localStorage
-  const saveState = useCallback((newState: ScrapbookState) => {
-    setState(newState);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
-    } catch (e) {
-      console.warn('Quota penyimpanan penuh', e);
+  // 1. Muat Buku dari Supabase saat pertama kali dibuka
+  useEffect(() => {
+    let mounted = true;
+    async function loadCloudBook() {
+      try {
+        const cloud = await api.getScrapbook();
+        if (mounted && cloud && cloud.state) {
+          setState(cloud.state);
+          if (engineRef.current) {
+            engineRef.current.updateState(cloud.state);
+          }
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cloud.state));
+          } catch {}
+          historyRef.current = [JSON.stringify(cloud.state)];
+          historyIdxRef.current = 0;
+          setSyncStatus('synced');
+        }
+      } catch (err) {
+        console.warn('Mode offline atau buku belum ada di cloud:', err);
+        setSyncStatus('offline');
+      }
     }
+    loadCloudBook();
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  // 2. Realtime Listener: Langsung sinkronkan saat pasangan mengedit buku (Canva-style)
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase.channel('nookly-scrapbook-collab', {
+      config: { broadcast: { self: false } },
+    });
+
+    channel
+      .on('broadcast', { event: 'book_change' }, ({ payload }) => {
+        if (payload && payload.sender !== currentUser && payload.state) {
+          isRemoteUpdateRef.current = true;
+          setState(payload.state);
+          if (engineRef.current) {
+            engineRef.current.updateState(payload.state);
+          }
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload.state));
+          } catch {}
+          setPartnerNotice(`✨ Buku diperbarui oleh pasangan!`);
+          setTimeout(() => setPartnerNotice(null), 3500);
+          setTimeout(() => {
+            isRemoteUpdateRef.current = false;
+          }, 300);
+        }
+      })
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      channel.unsubscribe();
+      channelRef.current = null;
+    };
+  }, [currentUser]);
+
+  // Save to localStorage + Debounced Save to Supabase Cloud + Realtime Broadcast
+  const saveState = useCallback(
+    (newState: ScrapbookState) => {
+      setState(newState);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+      } catch (e) {
+        console.warn('Quota penyimpanan penuh', e);
+      }
+
+      // Jangan broadcast balik jika update berasal dari pasangan
+      if (isRemoteUpdateRef.current) return;
+
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      setSyncStatus('saving');
+
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await api.saveScrapbook(newState);
+          setSyncStatus('synced');
+
+          // Broadcast instan ke pasangan (sub-second WebSocket message)
+          if (channelRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'book_change',
+              payload: {
+                sender: currentUser,
+                state: newState,
+                timestamp: Date.now(),
+              },
+            });
+          }
+        } catch (err) {
+          console.warn('Gagal sinkron cloud:', err);
+          setSyncStatus('offline');
+        }
+      }, 700);
+    },
+    [currentUser]
+  );
 
   const pushHistory = useCallback(
     (newState: ScrapbookState) => {
@@ -672,6 +778,26 @@ export function ScrapbookView({
             {mode3d ? <Box size={14} /> : <Eye size={14} />}
             <span className="hidden sm:inline">{mode3d ? '3D View' : 'Flat View'}</span>
           </button>
+
+          {/* Collaborative Sync Status Badge */}
+          <div className="card px-3 py-1.5 shadow-md flex items-center gap-1.5 bg-[var(--surface)]/90 backdrop-blur-md text-[11px] font-bold">
+            {syncStatus === 'saving' ? (
+              <span className="text-amber-500 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span className="hidden sm:inline">Menyimpan...</span>
+              </span>
+            ) : syncStatus === 'offline' ? (
+              <span className="opacity-60 flex items-center gap-1.5" title="Tersimpan di perangkat lokal">
+                <span className="w-2 h-2 rounded-full bg-zinc-400" />
+                <span className="hidden sm:inline">Lokal</span>
+              </span>
+            ) : (
+              <span className="text-emerald-500 flex items-center gap-1.5" title="Tersinkron realtime ke cloud">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="hidden sm:inline">Tersinkron</span>
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2 pointer-events-auto">
@@ -746,6 +872,14 @@ export function ScrapbookView({
           </button>
         </div>
       </div>
+
+      {/* Toast Notifikasi Kolaborasi Realtime (Canva-style) */}
+      {partnerNotice && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-2xl bg-[var(--surface)]/95 border border-accent/40 text-accent font-bold text-xs shadow-xl backdrop-blur-md flex items-center gap-2 pointer-events-none animate-bounce">
+          <span>🎨</span>
+          <span>{partnerNotice}</span>
+        </div>
+      )}
 
       {/* Bottom Bar: Spread Navigator */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-30 pointer-events-auto">

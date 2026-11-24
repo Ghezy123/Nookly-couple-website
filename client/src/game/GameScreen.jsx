@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { N, COLORS, emptyGrid, genHand, fits, canFitAny, linesFor, applyMove, scoreMove, addJunk, mulberry32 } from './engine.js';
+import { N, COLORS, emptyGrid, createStarterGrid, genHand, fits, canFitAny, linesFor, applyMove, scoreMove, addJunk, mulberry32 } from './engine.js';
 import * as sfx from './audio.js';
 
 const LABELS = ['', 'GREAT!', 'AMAZING!', 'UNBELIEVABLE!'];
@@ -49,7 +49,7 @@ function PieceView({ s, px }) {
 
 export default function Game({ seed, battle, onExit }) {
   const net = battle?.socket;
-  const [g, setG] = useState(() => { const grid = emptyGrid(); return { grid, hand: genHand(grid, mulberry32(seed >>> 0)), score: 0, streak: 0, miss: 0, round: 0, over: false }; });
+  const [g, setG] = useState(() => { const grid = createStarterGrid(6); return { grid, hand: genHand(grid, Math.random), score: 0, streak: 0, miss: 0, round: 0, over: false }; });
   const gr = useRef(g); gr.current = g;
   const [phase, setPhase] = useState(battle ? 'count' : 'play');
   const phaseRef = useRef(phase); phaseRef.current = phase;
@@ -74,6 +74,7 @@ export default function Game({ seed, battle, onExit }) {
   // countdown 3-2-1 (battle)
   useEffect(() => {
     if (!battle) return;
+    emit(gr.current);
     let n = 3; sfx.tick();
     const t = setInterval(() => {
       n -= 1;
@@ -123,7 +124,7 @@ export default function Game({ seed, battle, onExit }) {
     const res = applyMove(p.grid, s, r, c);
     const sc = scoreMove(s.cells, res.lines, p.streak, p.miss);
     let hand = p.hand.map((h, k) => (k === i ? null : h)); let round = p.round;
-    if (hand.every((h) => !h)) { round += 1; hand = genHand(res.grid, mulberry32(((seed >>> 0) + round * 7919) >>> 0)); }
+    if (hand.every((h) => !h)) { round += 1; hand = genHand(res.grid, Math.random); }
     const over = !canFitAny(res.grid, hand);
     const np = { grid: res.grid, hand, score: p.score + sc.gain, streak: sc.streak, miss: sc.miss, round, over };
     setG(np); setSel(null); sfx.place();
@@ -193,7 +194,7 @@ export default function Game({ seed, battle, onExit }) {
   }
 
   const leave = () => { if (net && phase !== 'ended' && !g.over) net.emit('game_over'); onExit(); };
-  const restart = () => { setG(() => { const grid = emptyGrid(); return { grid, hand: genHand(grid, mulberry32((Math.random() * 2 ** 31) >>> 0)), score: 0, streak: 0, miss: 0, round: 0, over: false }; }); };
+  const restart = () => { setG(() => { const grid = createStarterGrid(6); return { grid, hand: genHand(grid, Math.random), score: 0, streak: 0, miss: 0, round: 0, over: false }; }); };
   const iWon = result?.winnerId === net?.id;
 
   return (

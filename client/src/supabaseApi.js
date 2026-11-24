@@ -485,4 +485,48 @@ export const supabaseApi = {
     if (error) throw new Error(error.message);
     return { ok: true };
   },
+
+  // ---------- Buku Kenangan 3D Kolaboratif (Scrapbook) ----------
+  getScrapbook: async () => {
+    const { user } = await getCurrentContext();
+    const { data, error } = await supabase
+      .from('scrapbooks')
+      .select('*')
+      .eq('couple_id', user.couple_id)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.warn('Gagal memuat scrapbook dari Supabase', error);
+      return null;
+    }
+    if (!data) return null;
+    return {
+      state: typeof data.state === 'string' ? JSON.parse(data.state) : data.state,
+      updatedAt: data.updated_at,
+      updatedBy: data.updated_by,
+      coupleId: user.couple_id,
+    };
+  },
+
+  saveScrapbook: async (scrapbookState) => {
+    const { user } = await getCurrentContext();
+    const now = Date.now();
+    const { error } = await supabase
+      .from('scrapbooks')
+      .upsert(
+        {
+          couple_id: user.couple_id,
+          state: scrapbookState,
+          updated_at: now,
+          updated_by: user.name,
+        },
+        { onConflict: 'couple_id' }
+      );
+
+    if (error) {
+      console.warn('Gagal menyimpan scrapbook ke Supabase', error);
+      throw new Error(error.message);
+    }
+    return { ok: true, updatedAt: now, coupleId: user.couple_id };
+  },
 };
