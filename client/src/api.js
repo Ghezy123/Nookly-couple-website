@@ -38,8 +38,8 @@ async function req(path, { method = 'GET', body } = {}) {
 }
 
 const restApi = {
-  create: (name) => req('/auth/create', { method: 'POST', body: { name } }),
-  join: (code, name) => req('/auth/join', { method: 'POST', body: { code, name } }),
+  create: (name, password) => req('/auth/create', { method: 'POST', body: { name, password } }),
+  join: (code, name, password) => req('/auth/join', { method: 'POST', body: { code, name, password } }),
   me: () => req('/me'),
   setName: (name) => req('/user/name', { method: 'PUT', body: { name } }),
   setMood: (mood) => req('/mood', { method: 'PUT', body: { mood } }),

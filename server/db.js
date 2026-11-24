@@ -13,7 +13,7 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS couples (id INTEGER PRIMARY KEY, invite_code TEXT UNIQUE NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY, couple_id INTEGER NOT NULL REFERENCES couples(id) ON DELETE CASCADE,
-  name TEXT NOT NULL, token TEXT UNIQUE NOT NULL, mood TEXT, mood_at INTEGER, created_at INTEGER NOT NULL);
+  name TEXT NOT NULL, token TEXT UNIQUE NOT NULL, password TEXT, mood TEXT, mood_at INTEGER, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS stories (
   id INTEGER PRIMARY KEY, couple_id INTEGER NOT NULL REFERENCES couples(id) ON DELETE CASCADE,
   author_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -48,7 +48,8 @@ export const q = {
   addCouple: db.prepare('INSERT INTO couples (invite_code, created_at) VALUES (?, ?)'),
   coupleByCode: db.prepare('SELECT * FROM couples WHERE invite_code = ?'),
   coupleById: db.prepare('SELECT * FROM couples WHERE id = ?'),
-  addUser: db.prepare('INSERT INTO users (couple_id, name, token, created_at) VALUES (?, ?, ?, ?)'),
+  addUser: db.prepare('INSERT INTO users (couple_id, name, token, password, created_at) VALUES (?, ?, ?, ?, ?)'),
+  setPassword: db.prepare('UPDATE users SET password = ? WHERE id = ?'),
   userByToken: db.prepare('SELECT * FROM users WHERE token = ?'),
   setName: db.prepare('UPDATE users SET name = ? WHERE id = ?'),
   usersOfCouple: db.prepare('SELECT * FROM users WHERE couple_id = ? ORDER BY id'),

@@ -188,7 +188,7 @@ export function ScrapbookView({
     channelRef.current = channel;
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase?.removeChannel(channel);
       channelRef.current = null;
     };
   }, [currentUser]);

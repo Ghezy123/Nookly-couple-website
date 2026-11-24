@@ -62,9 +62,13 @@ async function getCurrentContext() {
 }
 
 export const supabaseApi = {
-  create: async (name) => {
+  create: async (name, password) => {
     const cleanName = String(name || '').trim().slice(0, 20);
     if (!cleanName) throw new Error('Nama wajib diisi (maks 20 karakter)');
+    const cleanPassword = String(password || '').trim();
+    if (!cleanPassword || cleanPassword.length < 4) {
+      throw new Error('Kata sandi minimal 4 karakter');
+    }
 
     const inviteCode = randomCode();
     const now = Date.now();
@@ -82,7 +86,7 @@ export const supabaseApi = {
     // 2. Buat user pertama
     const { data: user, error: uErr } = await supabase
       .from('users')
-      .insert({ couple_id: couple.id, name: cleanName, token, created_at: now })
+      .insert({ couple_id: couple.id, name: cleanName, token, password: cleanPassword, created_at: now })
       .select()
       .single();
 
@@ -95,10 +99,14 @@ export const supabaseApi = {
     };
   },
 
-  join: async (code, name) => {
+  join: async (code, name, password) => {
     const cleanName = String(name || '').trim().slice(0, 20);
     if (!cleanName) throw new Error('Nama wajib diisi (maks 20 karakter)');
     const cleanCode = String(code || '').trim().toUpperCase();
+    const cleanPassword = String(password || '').trim();
+    if (!cleanPassword || cleanPassword.length < 4) {
+      throw new Error('Kata sandi minimal 4 karakter');
+    }
 
     const { data: couple, error: cErr } = await supabase
       .from('couples')
@@ -123,6 +131,19 @@ export const supabaseApi = {
     );
 
     if (match) {
+      if (match.password) {
+        if (match.password !== cleanPassword) {
+          throw new Error('Kata sandi salah. Silakan periksa kembali kata sandimu.');
+        }
+      } else {
+        // Akun lama yang belum punya password (seperti Ghezy):
+        // Kunci dan amankan dengan password baru yang diinput!
+        await supabase
+          .from('users')
+          .update({ password: cleanPassword })
+          .eq('id', match.id);
+      }
+
       // Masuk kembali ke akun yang sudah ada
       return {
         token: match.token,
@@ -134,7 +155,7 @@ export const supabaseApi = {
     // 2. Jika bukan akun yang sudah ada, cek apakah ruang sudah penuh
     if (existingUsers.length >= 2) {
       const names = existingUsers.map((u) => u.name).join(' atau ');
-      throw new Error(`Ruang ini sudah terisi oleh ${names}. Masukkan nama panggilanmu yang terdaftar untuk masuk kembali.`);
+      throw new Error(`Ruang ini sudah terisi oleh ${names}. Masukkan namamu yang terdaftar beserta kata sandinya.`);
     }
 
     // 3. Daftarkan sebagai pasangan baru (pengguna ke-2)
@@ -143,7 +164,7 @@ export const supabaseApi = {
 
     const { data: user, error: uErr } = await supabase
       .from('users')
-      .insert({ couple_id: couple.id, name: cleanName, token, created_at: now })
+      .insert({ couple_id: couple.id, name: cleanName, token, password: cleanPassword, created_at: now })
       .select()
       .single();
 

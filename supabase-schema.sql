@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   couple_id UUID NOT NULL REFERENCES public.couples(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   token TEXT UNIQUE NOT NULL,
+  password TEXT,
   mood TEXT,
   mood_at BIGINT,
   created_at BIGINT NOT NULL

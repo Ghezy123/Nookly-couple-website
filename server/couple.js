@@ -13,30 +13,37 @@ const cat = (v) => (v == null ? null : CATEGORIES.includes(v) ? v : undefined);
 
 export function mountCouple(app) {
 const publicUser = (u) => (u ? { id: u.id, name: u.name, mood: u.mood, moodAt: u.mood_at } : null);
-const makeUser = (coupleId, name) => {
+const makeUser = (coupleId, name, password) => {
   const token = crypto.randomBytes(24).toString('hex');
-  const id = q.addUser.run(coupleId, name, token, now()).lastInsertRowid;
+  const id = q.addUser.run(coupleId, name, token, password || null, now()).lastInsertRowid;
   return { token, user: publicUser({ id, name, mood: null, mood_at: null }) };
 };
 
 // ---------- Auth / pasangan ----------
 app.post('/api/auth/create', (req, res) => {
   const name = text(req.body.name, 20); if (!name) return bad(res, 'Nama wajib diisi (maks 20 karakter)');
+  const password = text(req.body.password, 100); if (!password || password.length < 4) return bad(res, 'Kata sandi minimal 4 karakter');
   const inviteCode = code();
   const coupleId = q.addCouple.run(inviteCode, now()).lastInsertRowid;
-  res.status(201).json({ ...makeUser(coupleId, name), inviteCode });
+  res.status(201).json({ ...makeUser(coupleId, name, password), inviteCode });
 });
 app.post('/api/auth/join', (req, res) => {
   const name = text(req.body.name, 20); if (!name) return bad(res, 'Nama wajib diisi (maks 20 karakter)');
+  const password = text(req.body.password, 100); if (!password || password.length < 4) return bad(res, 'Kata sandi minimal 4 karakter');
   const couple = q.coupleByCode.get(String(req.body.code || '').trim().toUpperCase());
   if (!couple) return bad(res, 'Kode undangan tidak ditemukan', 404);
   const users = q.usersOfCouple.all(couple.id);
   const match = users.find((u) => u.name.trim().toLowerCase() === name.trim().toLowerCase());
   if (match) {
+    if (match.password) {
+      if (match.password !== password) return bad(res, 'Kata sandi salah. Silakan coba lagi.', 401);
+    } else {
+      q.setPassword.run(password, match.id);
+    }
     return res.status(200).json({ token: match.token, user: publicUser(match), inviteCode: couple.invite_code });
   }
-  if (users.length >= 2) return bad(res, `Ruang ini sudah terisi oleh ${users.map((u) => u.name).join(' atau ')}. Masukkan namamu yang terdaftar untuk masuk kembali.`, 409);
-  res.status(201).json({ ...makeUser(couple.id, name), inviteCode: couple.invite_code });
+  if (users.length >= 2) return bad(res, `Ruang ini sudah terisi oleh ${users.map((u) => u.name).join(' atau ')}. Masukkan namamu yang terdaftar beserta kata sandinya.`, 409);
+  res.status(201).json({ ...makeUser(couple.id, name, password), inviteCode: couple.invite_code });
 });
 app.get('/api/me', auth, (req, res) => {
   const users = q.usersOfCouple.all(req.user.couple_id);

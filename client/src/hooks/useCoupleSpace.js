@@ -28,8 +28,8 @@ export function useCoupleSpace() {
   const enter = async (fn) => { try { setError(''); const r = await fn(); setToken(r.token); setStatus('loading'); await refresh(); } catch (e) { setError(e.message); setStatus('anon'); } };
 
   const actions = {
-    create: (name) => enter(() => api.create(name)),
-    join: (code, name) => enter(() => api.join(code, name)),
+    create: (name, password) => enter(() => api.create(name, password)),
+    join: (code, name, password) => enter(() => api.join(code, name, password)),
     logout: () => { setToken(null); setInfo(null); setStories([]); setStatus('anon'); },
     setName: (name) => run(() => api.setName(name)),
     setMood: async (mood) => { setInfo((i) => ({ ...i, user: { ...i.user, mood, moodAt: Date.now() } })); return run(() => api.setMood(mood)); },
