@@ -64,16 +64,6 @@ export const fits = (g, s, r, c) =>
 export const canFit = (g, s) => { for (let r = 0; r <= N - s.h; r++) for (let c = 0; c <= N - s.w; c++) if (fits(g, s, r, c)) return true; return false; };
 export const canFitAny = (g, hand) => hand.some((s) => s && canFit(g, s));
 
-// Generator balok acak dinamis (default Math.random agar selalu unik tiap game dan pemain)
-export function genHand(grid, rng = Math.random) {
-  let hand;
-  for (let t = 0; t < 40; t++) {
-    hand = [0, 1, 2].map(() => SHAPES[(rng() * SHAPES.length) | 0]);
-    if (hand.some((s) => canFit(grid, s))) break;
-  }
-  return hand;
-}
-
 function stamp(g, s, r, c) {
   const ng = g.map((row) => [...row]);
   s.m.forEach((row, i) => row.forEach((v, j) => { if (v) ng[r + i][c + j] = s.color; }));
@@ -97,6 +87,117 @@ export function applyMove(g, s, r, c) {
     if (ng[i][j] && (rows.includes(i) || cols.includes(j))) cleared.push({ r: i, c: j, v: ng[i][j] });
   cleared.forEach(({ r: i, c: j }) => (ng[i][j] = 0));
   return { grid: ng, lines: rows.length + cols.length, cleared };
+}
+
+// Cek apakah kumpulan balok memiliki setidaknya 1 rangkaian penempatan yang valid (solvable sequence)
+// dengan memperhitungkan pemecahan baris/kolom (line clear) yang membuka ruang baru
+export function isHandSolvable(grid, hand) {
+  if (!hand || hand.length === 0) return true;
+  if (hand.length === 1) return canFit(grid, hand[0]);
+
+  for (let i = 0; i < hand.length; i++) {
+    const s = hand[i];
+    if (!canFit(grid, s)) continue;
+
+    const rest = hand.filter((_, idx) => idx !== i);
+    const clearingMoves = [];
+    const regularMoves = [];
+
+    for (let r = 0; r <= N - s.h; r++) {
+      for (let c = 0; c <= N - s.w; c++) {
+        if (fits(grid, s, r, c)) {
+          const lines = linesFor(grid, s, r, c);
+          if (lines.rows.length || lines.cols.length) {
+            clearingMoves.push([r, c]);
+          } else {
+            regularMoves.push([r, c]);
+          }
+        }
+      }
+    }
+
+    // Uji langkah: dahulukan langkah pemecah garis, lalu coba beberapa langkah biasa
+    const movesToTest = clearingMoves.length > 0 ? clearingMoves : regularMoves.slice(0, 5);
+
+    for (const [r, c] of movesToTest) {
+      const nextGrid = applyMove(grid, s, r, c).grid;
+      if (isHandSolvable(nextGrid, rest)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Balok berukuran kecil/sedang (<= 4 kotak)
+const SMALL_SHAPES = SHAPES.filter((s) => s.cells <= 4);
+
+// Cari balok yang langsung bisa meledakkan baris/kolom pada papan saat ini
+function findClearingShapes(grid) {
+  const helpful = [];
+  for (const s of SHAPES) {
+    for (let r = 0; r <= N - s.h; r++) {
+      for (let c = 0; c <= N - s.w; c++) {
+        if (fits(grid, s, r, c)) {
+          const lines = linesFor(grid, s, r, c);
+          if (lines.rows.length || lines.cols.length) {
+            helpful.push(s);
+            break;
+          }
+        }
+      }
+      if (helpful.includes(s)) break;
+    }
+  }
+  return helpful;
+}
+
+// Generator Balok Pintar (Smart Solvable Generator ala Block Blast)
+// Memastikan selalu ada jalur jalan keluar (solvable path),
+// namun tidak membuat game terlalu mudah karena pemain tetap harus memikirkan urutan & penempatan terbaik.
+export function genHand(grid, rng = Math.random) {
+  // Hitung jumlah kotak terisi di papan
+  let filled = 0;
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (grid[r][c]) filled++;
+    }
+  }
+  const isCrowded = filled >= 28; // papan terisi > 43%
+
+  // Tahap 1: Coba generate balok acak dan uji kelayakan (apakah ketiga-tiganya bisa ditaruh semua)
+  for (let attempt = 0; attempt < 35; attempt++) {
+    const pool = isCrowded && attempt > 6 ? SMALL_SHAPES : SHAPES;
+    const candidate = [0, 1, 2].map(() => pool[(rng() * pool.length) | 0]);
+
+    if (isHandSolvable(grid, candidate)) {
+      return candidate;
+    }
+  }
+
+  // Tahap 2: Jika papan sangat sesak / buntu, sertakan balok pembuka combo/pemecah garis
+  const clearing = findClearingShapes(grid);
+  const saviorPool = clearing.length > 0 ? clearing : SMALL_SHAPES;
+
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const candidate = [
+      saviorPool[(rng() * saviorPool.length) | 0],
+      SMALL_SHAPES[(rng() * SMALL_SHAPES.length) | 0],
+      SMALL_SHAPES[(rng() * SMALL_SHAPES.length) | 0],
+    ];
+    if (isHandSolvable(grid, candidate)) {
+      return candidate;
+    }
+  }
+
+  // Tahap 3: Fallback darurat (berikan balok kecil yang muat)
+  const fittingSmall = SMALL_SHAPES.filter((s) => canFit(grid, s));
+  if (fittingSmall.length > 0) {
+    return [0, 1, 2].map(() => fittingSmall[(rng() * fittingSmall.length) | 0]);
+  }
+
+  // Jika papan sudah benar-benar penuh total
+  return [0, 1, 2].map(() => SHAPES[(rng() * SHAPES.length) | 0]);
 }
 
 // 10/kotak + bonus eksponensial garis + bonus combo. Streak putus setelah 3 penempatan tanpa clear.
