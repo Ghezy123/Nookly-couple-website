@@ -42,6 +42,7 @@ const restApi = {
   join: (code, name, password) => req('/auth/join', { method: 'POST', body: { code, name, password } }),
   me: () => req('/me'),
   setName: (name) => req('/user/name', { method: 'PUT', body: { name } }),
+  setPassword: (password) => req('/user/password', { method: 'PUT', body: { password } }),
   setMood: (mood) => req('/mood', { method: 'PUT', body: { mood } }),
   stories: () => req('/stories'),
   addStory: (b) => req('/stories', { method: 'POST', body: b }),

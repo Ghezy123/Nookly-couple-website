@@ -32,6 +32,7 @@ export function useCoupleSpace() {
     join: (code, name, password) => enter(() => api.join(code, name, password)),
     logout: () => { setToken(null); setInfo(null); setStories([]); setStatus('anon'); },
     setName: (name) => run(() => api.setName(name)),
+    setPassword: (password) => run(() => api.setPassword(password)),
     setMood: async (mood) => { setInfo((i) => ({ ...i, user: { ...i.user, mood, moodAt: Date.now() } })); return run(() => api.setMood(mood)); },
     add: (v) => run(() => api.addStory(v)),
     edit: (id, v) => run(() => api.editStory(id, v)),

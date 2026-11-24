@@ -59,6 +59,7 @@ export default function App() {
             info={info}
             userName={info?.user?.name}
             onSaveName={actions.setName}
+            onSavePassword={actions.setPassword}
             onClose={() => setShowSettings(false)}
             onLogout={() => { setShowSettings(false); actions.logout(); }}
           />

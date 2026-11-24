@@ -60,6 +60,12 @@ app.put('/api/user/name', auth, (req, res) => {
   q.setName.run(name, req.user.id);
   res.json({ ok: true, name });
 });
+app.put('/api/user/password', auth, (req, res) => {
+  const password = text(req.body.password, 100);
+  if (!password || password.length < 4) return bad(res, 'Kata sandi minimal 4 karakter');
+  q.setPassword.run(password, req.user.id);
+  res.json({ ok: true });
+});
 
 // ---------- Buku Kenangan 3D (Scrapbook) ----------
 app.get('/api/scrapbook', auth, (req, res) => {

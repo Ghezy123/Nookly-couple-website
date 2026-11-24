@@ -4,6 +4,9 @@ import {
   ArrowLeftRight,
   Check,
   Copy,
+  Eye,
+  EyeOff,
+  KeyRound,
   LogOut,
   Paintbrush,
   Settings,
@@ -28,6 +31,7 @@ export default function SettingsModal({
   info,
   userName,
   onSaveName,
+  onSavePassword,
   onClose,
   onLogout,
 }) {
@@ -45,6 +49,12 @@ export default function SettingsModal({
   const [savingName, setSavingName] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+
+  // Password State
+  const [passwordInput, setPasswordInput] = useState('');
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [savedPasswordSuccess, setSavedPasswordSuccess] = useState(false);
 
   useEffect(() => {
     if (userName) setNameInput(userName);
@@ -221,6 +231,69 @@ export default function SettingsModal({
                   <p className="text-[10px] opacity-60">
                     Nama ini yang terlihat oleh pasanganmu di beranda, cerita, dan
                     buku kenangan.
+                  </p>
+                </form>
+              </div>
+
+              {/* Card Kata Sandi Akun */}
+              <div className="p-4 rounded-2xl bg-[var(--chip)] border border-[var(--border)] space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs flex items-center gap-1.5 text-accent">
+                    <KeyRound size={15} /> Kata Sandi Akun
+                  </span>
+                  <span className="text-[10px] opacity-60">Keamanan</span>
+                </div>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!passwordInput.trim() || passwordInput.trim().length < 4) return;
+                    setSavingPassword(true);
+                    const ok = await onSavePassword?.(passwordInput.trim());
+                    setSavingPassword(false);
+                    if (ok) {
+                      setSavedPasswordSuccess(true);
+                      setPasswordInput('');
+                      setTimeout(() => setSavedPasswordSuccess(false), 3000);
+                    }
+                  }}
+                  className="space-y-2"
+                >
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type={showPasswordInput ? 'text' : 'password'}
+                        className="field !py-2.5 px-3 pr-8 text-xs font-mono w-full bg-[var(--surface)] border border-[var(--border)] focus:border-accent"
+                        value={passwordInput}
+                        onChange={(e) => {
+                          setPasswordInput(e.target.value);
+                          setSavedPasswordSuccess(false);
+                        }}
+                        placeholder="Ketik kata sandi baru (min. 4)"
+                        maxLength={50}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-60 hover:opacity-100"
+                        onClick={() => setShowPasswordInput((v) => !v)}
+                        title={showPasswordInput ? 'Sembunyikan' : 'Tampilkan'}
+                      >
+                        {showPasswordInput ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={savingPassword || passwordInput.trim().length < 4}
+                      className="btn-warm !py-2 !px-4 text-xs font-bold whitespace-nowrap disabled:opacity-40"
+                    >
+                      {savingPassword
+                        ? 'Menyimpan...'
+                        : savedPasswordSuccess
+                        ? '✓ Diperbarui'
+                        : 'Ubah Sandi'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] opacity-60">
+                    Kata sandi untuk masuk kembali jika sesi loginmu di perangkat ini berakhir.
                   </p>
                 </form>
               </div>

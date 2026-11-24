@@ -154,8 +154,7 @@ export const supabaseApi = {
 
     // 2. Jika bukan akun yang sudah ada, cek apakah ruang sudah penuh
     if (existingUsers.length >= 2) {
-      const names = existingUsers.map((u) => u.name).join(' atau ');
-      throw new Error(`Ruang ini sudah terisi oleh ${names}. Masukkan namamu yang terdaftar beserta kata sandinya.`);
+      throw new Error('Ruang ini sudah penuh. Masukkan nama panggilan dan kata sandi akunmu yang terdaftar.');
     }
 
     // 3. Daftarkan sebagai pasangan baru (pengguna ke-2)
@@ -229,6 +228,22 @@ export const supabaseApi = {
 
     if (error) throw new Error(error.message);
     return { ok: true, name: cleanName };
+  },
+
+  setPassword: async (password) => {
+    const { user } = await getCurrentContext();
+    const cleanPassword = String(password || '').trim();
+    if (!cleanPassword || cleanPassword.length < 4) {
+      throw new Error('Kata sandi minimal 4 karakter');
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .update({ password: cleanPassword })
+      .eq('id', user.id);
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
   },
 
   stories: async () => {

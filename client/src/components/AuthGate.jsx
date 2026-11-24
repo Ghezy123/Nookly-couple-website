@@ -71,12 +71,6 @@ export default function AuthGate({ actions, error, loading }) {
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
-
-          <p className="text-xs text-center opacity-65 px-1">
-            {tab === 'create'
-              ? '🔒 Kata sandi ini untuk mengunci akunmu agar hanya kamu yang bisa masuk.'
-              : '🔑 Masukkan nama & sandimu (atau buat sandi baru jika akunmu belum ber-sandi).'}
-          </p>
         </div>
 
         {error && <p className="text-center font-semibold text-accent font-bold" role="alert">{error}</p>}
