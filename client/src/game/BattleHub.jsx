@@ -35,7 +35,7 @@ export default function BattleHub({ name: initialName = '' }) {
   const exitRoom = () => { socket.emit('leave_room'); setRoom(null); setScreen('menu'); };
 
   const isHost = room?.hostId === socket.id;
-  const setOpt = (o) => socket.emit('set_options', { mode: room.mode, garbage: room.garbage, ...o });
+  const setOpt = (o) => socket.emit('set_options', { mode: room.mode, duration: room.duration || 120000, garbage: room.garbage, ...o });
 
   let content;
   if (screen === 'solo') {
@@ -60,7 +60,7 @@ export default function BattleHub({ name: initialName = '' }) {
               <input className="field uppercase tracking-widest" placeholder="Kode room" maxLength={6} value={codeIn} onChange={(e) => setCodeIn(e.target.value.toUpperCase())} />
               <button className="btn-warm" disabled={!online || codeIn.length < 4} onClick={join}>Gabung</button>
             </div>
-            {err && <p className="text-center font-semibold">⚠ {err}</p>}
+            {err && <p className="text-center font-semibold text-rose-500">⚠ {err}</p>}
           </div>
         )}
 
@@ -68,24 +68,58 @@ export default function BattleHub({ name: initialName = '' }) {
           <div className="space-y-4">
             <div className="text-center">
               <div className="text-sm opacity-70">Kode room (klik untuk menyalin)</div>
-              <button className="text-5xl font-bold tracking-[.3em]" onClick={() => navigator.clipboard?.writeText(room.code)}>{room.code}</button>
+              <button className="text-5xl font-bold tracking-[.3em] hover:opacity-80 transition" onClick={() => navigator.clipboard?.writeText(room.code)}>{room.code}</button>
             </div>
             <div className="space-y-1">
               {room.players.map((p) => <div key={p.id} className="flex justify-between chip rounded-lg px-3 py-2"><span>{p.name}{p.id === socket.id ? ' (kamu)' : ''}</span><span className="opacity-70">{p.id === room.hostId ? 'Host' : 'Pemain'}</span></div>)}
               {room.players.length < 2 && <div className="text-center opacity-70 py-2">Menunggu lawan bergabung…</div>}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {[['survival', 'Survival'], ['time', 'Time Attack 2 mnt']].map(([k, l]) => (
-                <button key={k} disabled={!isHost} onClick={() => setOpt({ mode: k })} className={`rounded-xl py-2 ${room.mode === k ? 'badge font-semibold' : 'chip'}`}>{l}</button>
-              ))}
+            
+            <div className="space-y-1.5">
+              <div className="text-xs font-semibold opacity-70 px-1">Mode:</div>
+              <div className="grid grid-cols-2 gap-2">
+                {[['survival', 'Survival'], ['time', 'Time Attack']].map(([k, l]) => (
+                  <button key={k} disabled={!isHost} onClick={() => setOpt({ mode: k })} className={`rounded-xl py-2 font-bold text-sm transition ${room.mode === k ? 'badge shadow-md' : 'chip hover:brightness-105'}`}>{l}</button>
+                ))}
+              </div>
             </div>
-            <label className="flex items-center justify-between chip rounded-xl px-3 py-2">
-              <span>Battle Garbage (serangan blok batu)</span>
-              <input type="checkbox" className="w-5 h-5" disabled={!isHost} checked={room.garbage} onChange={(e) => setOpt({ garbage: e.target.checked })} />
+
+            {room.mode === 'time' && (
+              <div className="space-y-1.5 p-2.5 rounded-2xl bg-black/10">
+                <div className="flex justify-between items-center text-xs opacity-80 px-1">
+                  <span className="font-semibold">Durasi:</span>
+                  <span className="font-bold text-accent">{(room.duration || 120000) / 60000} Menit</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    [60000, '1 Mnt'],
+                    [120000, '2 Mnt'],
+                    [180000, '3 Mnt'],
+                    [300000, '5 Mnt'],
+                  ].map(([dur, label]) => (
+                    <button
+                      key={dur}
+                      type="button"
+                      disabled={!isHost}
+                      onClick={() => setOpt({ duration: dur })}
+                      className={`py-1.5 px-2 rounded-xl text-xs font-bold transition ${
+                        (room.duration || 120000) === dur ? 'badge shadow-sm' : 'chip hover:brightness-110'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <label className="flex items-center justify-between chip rounded-xl px-3 py-2 cursor-pointer">
+              <span className="text-sm">Battle Garbage</span>
+              <input type="checkbox" className="w-5 h-5 rounded cursor-pointer" disabled={!isHost} checked={room.garbage} onChange={(e) => setOpt({ garbage: e.target.checked })} />
             </label>
             {isHost
-              ? <button className="btn-warm w-full" disabled={room.players.length < 2} onClick={() => socket.emit('start_match')}>Mulai Match</button>
-              : <p className="text-center opacity-70">Menunggu host memulai…</p>}
+              ? <button className="btn-warm w-full text-base py-3" disabled={room.players.length < 2} onClick={() => socket.emit('start_match')}>Mulai Match</button>
+              : <p className="text-center opacity-70 py-2 text-sm">Menunggu host…</p>}
             <button className="btn-soft w-full" onClick={exitRoom}>Keluar Room</button>
           </div>
         )}

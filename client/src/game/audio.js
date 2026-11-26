@@ -19,5 +19,15 @@ export const chime = (lv = 0) => {
   const n = Math.min(3 + lv, 7);
   for (let i = 0; i < n; i++) tone(523 * 2 ** ((SCALE[i] + lv) / 12), i * 0.065, 0.3, 'triangle', 0.14);
 };
-export const win = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, i * 0.13, 0.4, 'triangle', 0.16));
+export const win = () => {
+  const notes = [523, 659, 784, 1047, 784, 1047, 1319];
+  notes.forEach((f, i) => tone(f, i * 0.11, 0.4, 'triangle', 0.18));
+  setTimeout(() => {
+    [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, i * 0.08, 0.6, 'sine', 0.2));
+  }, 700);
+};
 export const lose = () => [440, 392, 349, 262].forEach((f, i) => tone(f, i * 0.22, 0.5, 'sawtooth', 0.09));
+export const taunt = () => {
+  tone(587, 0, 0.07, 'sine', 0.15, 880);
+  tone(880, 0.07, 0.14, 'triangle', 0.15, 1174);
+};
